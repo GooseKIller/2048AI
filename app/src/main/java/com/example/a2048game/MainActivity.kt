@@ -91,7 +91,7 @@ class MainActivity : Activity() {
                     val runnable = object : Runnable {
                         override fun run() {
                             game.move(i.toString())
-                            updateUI(game.getBoard(), gridLayout)
+                            updateUI(game.getBoard(), gridLayout, delayMilis)
 
                             handler.postDelayed(this, delayMilis)
                         }
@@ -114,7 +114,7 @@ class MainActivity : Activity() {
         }
     }
 
-    fun updateUI(board: Array<Array<Int>>, gridLayout: GridLayout){
+    fun updateUI(board: Array<Array<Int>>, gridLayout: GridLayout, delayMillis: Long){
         for(i in board.indices){
             for(j in board.indices){
                 val textView = gridLayout.getChildAt(i * board.size + j) as? TextView
@@ -141,6 +141,7 @@ class MainActivity : Activity() {
             }
 
         }
+        //Thread.sleep(delayMillis)
 
     }
 }

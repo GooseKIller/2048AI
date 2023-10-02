@@ -1,4 +1,5 @@
 import java.lang.Exception
+import kotlin.math.pow
 
 class AiPathFinder(private var deepMove:Int = 3, private var randomSeeds: Game.RandomSeeds) {
 
@@ -174,17 +175,48 @@ class AiPathFinder(private var deepMove:Int = 3, private var randomSeeds: Game.R
         return (number * multiplier + seed) % modulus
     }
 
-    private fun fitnessFunction(board: Array<Array<Int>>):Int {
+    private fun fitnessFunction(board: Array<Array<Int>>):Long {
         val flatBoard = board.flatten()
         val sumValues = flatBoard.sum()
         val maxValues = flatBoard.max()
         val spaceValues = flatBoard.filter { it == 0 }.size
         val mergePotential = this.calculateMergePotential(board)
-        val cornerBonus = this.calculateCornerBonus(board)
+        val cornerBonus = this.calculateCornerBonusSnake(board)
         val largeNumber:Int = flatBoard.sum() / (flatBoard.size - spaceValues)
+        val lose:Int = if (!this.isLose(board)) 1 else 0
 
-        return sumValues + 8*maxValues + 10*spaceValues + 2 * mergePotential + 2*cornerBonus + 15*largeNumber
+        return ((sumValues + 8*maxValues + 10*spaceValues + 2 * mergePotential + 15*cornerBonus + 15*largeNumber) * lose).toLong()
 
+    }
+
+    fun isLose(board: Array<Array<Int>>): Boolean {
+        val size = board.size
+        val cells = this.notEmptyCell(board)
+        if (cells.size != size * size) {
+            return false
+        }
+        for (x in 0 until size) {
+            for (y in 0 until size) {
+                val currentCell = cells[x * size + y]
+
+                // Проверяем соседнюю ячейку справа
+                if (x < size - 1) {
+                    val rightCell = cells[(x + 1) * size + y]
+                    if (currentCell.value == rightCell.value) {
+                        return false
+                    }
+                }
+
+                // Проверяем соседнюю ячейку снизу
+                if (y < size - 1) {
+                    val downCell = cells[x * size + (y + 1)]
+                    if (currentCell.value == downCell.value) {
+                        return false
+                    }
+                }
+            }
+        }
+        return true
     }
 
     private fun calculateMergePotential(board: Array<Array<Int>>): Int {
@@ -214,6 +246,32 @@ class AiPathFinder(private var deepMove:Int = 3, private var randomSeeds: Game.R
         return maxValueInCorner * 2 + sumOfCorners
     }
 
-    class Move(var fitness:Int, var moves:String)
+    private fun calculateCornerBonussideDiagonal(board:Array<Array<Int>>): Int {
+            val rows = board.size
+            val cols = board[0].size
+            val resultMatrix = Array(rows) { Array(cols) { 0 } }
+
+            for (i in 0 until rows) {
+                for (j in 0 until cols) {
+                    val powerOfFour = 4.0.pow(rows - 1 - i + cols - 1 - j).toInt()
+                    resultMatrix[i][j] = board[i][j] * powerOfFour
+                }
+            }
+
+            return resultMatrix.sumOf { it.sum() }
+    }
+
+    private fun calculateCornerBonusSnake(board: Array<Array<Int>>): Long {
+        val flattenBoard = board.flatten()
+        val size = flattenBoard.size
+        var answer:Long = 0
+        for (i in flattenBoard.indices) {
+            answer += 4.0.pow(size-1-i).toLong() * flattenBoard[i]
+
+        }
+        return answer
+    }
+
+    class Move(var fitness:Long, var moves:String)
     private class Cell(var xPos: Int, var yPos: Int, var value: Int = 0)
 }
