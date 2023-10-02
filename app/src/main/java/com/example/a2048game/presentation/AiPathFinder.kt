@@ -1,10 +1,14 @@
+package com.example.a2048game.presentation
+
+import Game
 import java.lang.Exception
 import kotlin.math.pow
+import kotlin.random.Random
 
 class AiPathFinder(private var deepMove:Int = 3, private var randomSeeds: Game.RandomSeeds) {
 
     fun bestMoves(board: Array<Array<Int>> , step:Int): String {
-        val bestMoves: Array<Move> = Array(4) {Move(0, "Error")}
+        val bestMoves: Array<Move> = Array(4) { Move(0, "Error") }
         val directions = listOf("U", "D", "L", "R")
         for(i in bestMoves.indices){
             bestMoves[i] = bestMovesRecursion(directions[i], board, step)
@@ -26,13 +30,17 @@ class AiPathFinder(private var deepMove:Int = 3, private var randomSeeds: Game.R
             return Move(this.fitnessFunction(board), direction)
         }
 
-        val bestMoves: Array<Move> = Array(4) {Move(0, "Error")}
+        val moves: Array<RecursionData> = Array(4) { RecursionData(board, "NO", -1) }
         val directions = listOf("U", "D", "L", "R")
-        for(i in bestMoves.indices){
-            bestMoves[i] = bestMovesRecursion(directions[i], board, 1+step, 1+recursionLevel)
+        for(i in moves.indices){
+            val boardMove = this.move(directions[i], board, step)
+            moves[i] = RecursionData(boardMove, directions[i], fitnessFunction (boardMove))//bestMovesRecursion(directions[i], board, 1+step, 1+recursionLevel)
             //println()
         }
-        val newMove = bestMoves.maxBy { it.fitness }
+        val pair = this.findTwoMaxValue(moves)
+        val newMove = if(Random.nextFloat() < .9) bestMovesRecursion(pair.first.move, pair.first.board, step+1, recursionLevel + 1) else bestMovesRecursion(pair.second.move, pair.second.board, step+1, recursionLevel + 1)
+
+        //val newMove = moves.maxBy { it.fitness }
         if (board.flatten() == boardold.flatten()){
             //println("Eguals >")
             newMove.fitness = 0
@@ -41,6 +49,29 @@ class AiPathFinder(private var deepMove:Int = 3, private var randomSeeds: Game.R
         }
         newMove.moves = direction + newMove.moves
         return newMove
+    }
+
+    private fun findTwoMaxValue(moves:Array<RecursionData>): Pair<RecursionData, RecursionData> {
+        var max1:RecursionData
+        var max2:RecursionData
+
+        if (moves[0].fitness > moves[1].fitness) {
+            max1 = moves[0]
+            max2 = moves[1]
+        } else {
+            max1 = moves[1]
+            max2 = moves[0]
+        }
+
+        for(i in 2 until moves.size){
+            if (moves[i].fitness > max1.fitness) {
+                max2 = max1
+                max1 = moves[i]
+            } else if (moves[i].fitness > max2.fitness) {
+                max2 = moves[i]
+            }
+        }
+        return Pair(max1, max2)
     }
 
 
@@ -178,15 +209,20 @@ class AiPathFinder(private var deepMove:Int = 3, private var randomSeeds: Game.R
     private fun fitnessFunction(board: Array<Array<Int>>):Long {
         val flatBoard = board.flatten()
         val sumValues = flatBoard.sum()
-        val maxValues = flatBoard.max()
-        val spaceValues = flatBoard.filter { it == 0 }.size
-        val mergePotential = this.calculateMergePotential(board)
-        val cornerBonus = this.calculateCornerBonusSnake(board)
-        val largeNumber:Int = flatBoard.sum() / (flatBoard.size - spaceValues)
-        val lose:Int = if (!this.isLose(board)) 1 else 0
 
-        return ((sumValues + 8*maxValues + 10*spaceValues + 2 * mergePotential + 15*cornerBonus + 15*largeNumber) * lose).toLong()
+        // Вызов функций из класса для mergePotential и cornerBonus
+        val mergePotential = calculateMergePotential(board)
+        val cornerBonus = calculateCornerBonusSnake(board)
 
+        // Вызов функции из класса для проверки проигрыша
+        return if (!isLose(board)) {
+            // Подстройте веса и объедините факторы для оценки fitnessScore
+            val fitnessScore = 3 * cornerBonus + 2*mergePotential.toLong() + 2 * sumValues
+            fitnessScore
+        } else {
+            // Вернуть 0, если игра проиграна
+            0
+        }
     }
 
     fun isLose(board: Array<Array<Int>>): Boolean {
@@ -272,6 +308,7 @@ class AiPathFinder(private var deepMove:Int = 3, private var randomSeeds: Game.R
         return answer
     }
 
+    private class RecursionData(var board: Array<Array<Int>>,var move:String, var fitness: Long)
     class Move(var fitness:Long, var moves:String)
     private class Cell(var xPos: Int, var yPos: Int, var value: Int = 0)
 }

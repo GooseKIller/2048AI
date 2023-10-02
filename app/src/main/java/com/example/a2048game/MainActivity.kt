@@ -1,6 +1,6 @@
 package com.example.a2048game
 
-import AiPathFinder
+import com.example.a2048game.presentation.AiPathFinder
 import Game
 import android.app.Activity
 import android.content.Intent
@@ -8,7 +8,6 @@ import android.graphics.Color
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
 import android.util.TypedValue
 import android.view.Gravity
 import android.widget.Button
@@ -17,7 +16,6 @@ import android.widget.TextView
 //import androidx.compose.ui.graphics.Color
 import com.example.a2048game.presentation.GameVisualisation
 import com.example.a2048game.presentation.MenuActivity
-import java.lang.Exception
 
 
 class MainActivity : Activity() {
@@ -32,7 +30,7 @@ class MainActivity : Activity() {
         val delayMilis: Long = intent.getLongExtra("delay", 350)
 
         val game = Game(size)
-        val ai = AiPathFinder(4, game.getSeeds())
+        val ai = AiPathFinder(8, game.getSeeds())
         val gameVisualisation = GameVisualisation(game)
         val startStep = game.getStep()
 
@@ -40,6 +38,7 @@ class MainActivity : Activity() {
 
         val button: Button = findViewById(R.id.button)
         val settingButton: Button = findViewById(R.id.buttonSettings)
+
 
         gridLayout.rowCount = size
         gridLayout.columnCount = size
@@ -64,13 +63,14 @@ class MainActivity : Activity() {
                 textView.setBackgroundColor(Color.parseColor("#FFCBBFB3")) // Задайте цвет фона по вашему выбору
                 textView.setTextColor(Color.parseColor("#000000")) // Задайте цвет текста по вашему выбору
 
-                textView.setAutoSizeTextTypeUniformWithConfiguration(1, 14, 1, TypedValue.COMPLEX_UNIT_DIP)
+                textView.setAutoSizeTextTypeUniformWithConfiguration(5, 14, 1, TypedValue.COMPLEX_UNIT_DIP)
                 textView.layoutParams = params
 
                 // Добавьте textView в gridLayout
                 gridLayout.addView(textView)
             }
         }
+        //gameVisualisation.gripTiles(gridLayout, size)
 
         settingButton.setOnClickListener {
             val intent = Intent(this, MenuActivity::class.java)
