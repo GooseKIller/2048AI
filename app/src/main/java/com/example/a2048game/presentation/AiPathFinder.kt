@@ -1,12 +1,14 @@
 package com.example.a2048game.presentation
 
 import Game
+import android.util.Log
 import java.lang.Exception
+import kotlin.math.log
 import kotlin.math.pow
 import kotlin.random.Random
 
-class AiPathFinder(private var deepMove:Int = 3, private var randomSeeds: Game.RandomSeeds) {
-
+class AiPathFinder(private var deepMove:Int = 3, private var randomSeeds: Game.RandomSeeds, private val size: Int) {
+    private var snakeMatrix = this.snakeMatrix(size)
     fun bestMoves(board: Array<Array<Int>> , step:Int): String {
         val bestMoves: Array<Move> = Array(4) { Move(0, "Error") }
         val directions = listOf("U", "D", "L", "R")
@@ -17,28 +19,59 @@ class AiPathFinder(private var deepMove:Int = 3, private var randomSeeds: Game.R
         return bestMoves.maxBy { it.fitness }.moves
     }
 
-    private fun bestMovesRecursion(direction:String, boardold: Array<Array<Int>>, step: Int, recursionLevel: Int = 0): Move {
+    private fun bestMovesSearch(direction:String, boardold: Array<Array<Int>>, step: Int, recursionLevel: Int = 0): Move{
+        //here we use a simple binary tree search
         val board = move(direction, boardold, step)
+
+        if (recursionLevel == deepMove){
+            if (board.flatten() == boardold.flatten()){
+                return Move(0, direction)
+            }
+            return Move(this.fitnessFunction(move(direction, boardold, step)), direction)
+        }
+
+        val bestMoves: Array<Move> = Array(4) {Move(0, "Error")}
+        val directions = listOf("U", "D", "L", "R")
+        for(i in bestMoves.indices){
+            bestMoves[i] = bestMovesSearch(directions[i], board, 1+step, 1+recursionLevel)
+        }
+        val newMove = bestMoves.maxBy { it.fitness }
+
+        //val newMove = moves.maxBy { it.fitness }
+        if (board.flatten() == boardold.flatten()){
+            //println("Eguals >")
+            newMove.fitness = 0
+        } else {
+            newMove.fitness += fitnessFunction(board) * recursionLevel + 1
+        }
+        newMove.moves = direction + newMove.moves
+        return newMove
+    }
+
+    private fun bestMovesRecursion(direction:String, boardold: Array<Array<Int>>, step: Int, recursionLevel: Int = 0): Move {
+        // here we use alpha-beta prunning
+        val board = boardold//move(direction, boardold, step)
 
         //println("Fitness: ${fitnessFunction(board)} ${direction}, ${recursionLevel}")
         if (recursionLevel == deepMove){
-            //println(recursionLevel)
             if (board.flatten() == boardold.flatten()){
-                //println("Eguals >>")
                 return Move(0, direction)
             }
-            return Move(this.fitnessFunction(board), direction)
+            return Move(this.fitnessFunction(move(direction, boardold, step)), direction)
         }
 
-        val moves: Array<RecursionData> = Array(4) { RecursionData(board, "NO", -1) }
+        val moves: Array<RecursionData> = Array(4) { RecursionData(board, "if u see this error in bestMoves", -1) }
         val directions = listOf("U", "D", "L", "R")
         for(i in moves.indices){
             val boardMove = this.move(directions[i], board, step)
-            moves[i] = RecursionData(boardMove, directions[i], fitnessFunction (boardMove))//bestMovesRecursion(directions[i], board, 1+step, 1+recursionLevel)
-            //println()
+            moves[i] = RecursionData(boardMove, directions[i], fitnessFunction(boardMove))
         }
         val pair = this.findTwoMaxValue(moves)
-        val newMove = if(Random.nextFloat() < .9) bestMovesRecursion(pair.first.move, pair.first.board, step+1, recursionLevel + 1) else bestMovesRecursion(pair.second.move, pair.second.board, step+1, recursionLevel + 1)
+        val newMove = if(Random.nextFloat() < .9){
+            bestMovesRecursion(pair.first.move, pair.first.board, step+1, recursionLevel + 1)
+        } else {
+            bestMovesRecursion(pair.second.move, pair.second.board, step+1, recursionLevel + 1)
+        }
 
         //val newMove = moves.maxBy { it.fitness }
         if (board.flatten() == boardold.flatten()){
@@ -78,7 +111,6 @@ class AiPathFinder(private var deepMove:Int = 3, private var randomSeeds: Game.R
     private fun move(direction: String, boardold: Array<Array<Int>>, step: Int):Array<Array<Int>> {
         var board = boardold
         val vector: Pair<Int, Int> = Pair(-1, 0)
-        val size = board.size
 
         val degrees = when (direction) {
             "R" -> 270
@@ -107,7 +139,6 @@ class AiPathFinder(private var deepMove:Int = 3, private var randomSeeds: Game.R
                 val collisionCell = cells.find { it.xPos == nextX && it.yPos == nextY && it.value != 0 }
 
                 if (collisionCell != null) {
-                    //println("[][](${cell.xPos} ${cell.yPos} ${cell.value}) (${collisionCell.xPos} ${collisionCell.yPos} ${collisionCell.value})")
                     if (collisionCell.value == cell.value) {
                         // Объединение ячеек при столкновении
                         collisionCell.value *= 2
@@ -124,7 +155,7 @@ class AiPathFinder(private var deepMove:Int = 3, private var randomSeeds: Game.R
                 newY = nextY
             }
         }
-        board = updateBoard(cells, board.size, step)
+        board = updateBoard(cells, size, step)
         return rotateMatrix(board, 360 - degrees)
 
     }
@@ -217,7 +248,7 @@ class AiPathFinder(private var deepMove:Int = 3, private var randomSeeds: Game.R
         // Вызов функции из класса для проверки проигрыша
         return if (!isLose(board)) {
             // Подстройте веса и объедините факторы для оценки fitnessScore
-            val fitnessScore = 3 * cornerBonus + 2*mergePotential.toLong() + 2 * sumValues
+            val fitnessScore = 3 * cornerBonus + mergePotential.toLong() + 2 * sumValues
             fitnessScore
         } else {
             // Вернуть 0, если игра проиграна
@@ -225,8 +256,7 @@ class AiPathFinder(private var deepMove:Int = 3, private var randomSeeds: Game.R
         }
     }
 
-    fun isLose(board: Array<Array<Int>>): Boolean {
-        val size = board.size
+    private fun isLose(board: Array<Array<Int>>): Boolean {
         val cells = this.notEmptyCell(board)
         if (cells.size != size * size) {
             return false
@@ -257,8 +287,8 @@ class AiPathFinder(private var deepMove:Int = 3, private var randomSeeds: Game.R
 
     private fun calculateMergePotential(board: Array<Array<Int>>): Int {
         var mergePotential = 0
-        for (i in 0 until board.size-1){
-            for (j in 0 until board.size-1){
+        for (i in 0 until size-1){
+            for (j in 0 until size-1){
                 if ((board[i][j] == board[i+1][j] || board[i][j] == board[i][j+1]) && board[i][j] != 0) {
                     mergePotential += board[i][j] * 2
                 }
@@ -270,9 +300,9 @@ class AiPathFinder(private var deepMove:Int = 3, private var randomSeeds: Game.R
     private fun calculateCornerBonus(board: Array<Array<Int>>): Int {
         val cornerValues = listOf(
             board[0][0],
-            board[0][board.size - 1],
-            board[board.size - 1][0]//,
-            //board[board.size - 1][board.size - 1]
+            board[0][size - 1],
+            board[size - 1][0]//,
+            //board[size - 1][size - 1]
         )
         val maxValueInCorner = cornerValues.maxOrNull() ?: 0
         val sumOfCorners = cornerValues.sum()
@@ -283,7 +313,7 @@ class AiPathFinder(private var deepMove:Int = 3, private var randomSeeds: Game.R
     }
 
     private fun calculateCornerBonussideDiagonal(board:Array<Array<Int>>): Int {
-            val rows = board.size
+            val rows = size
             val cols = board[0].size
             val resultMatrix = Array(rows) { Array(cols) { 0 } }
 
@@ -298,14 +328,50 @@ class AiPathFinder(private var deepMove:Int = 3, private var randomSeeds: Game.R
     }
 
     private fun calculateCornerBonusSnake(board: Array<Array<Int>>): Long {
-        val flattenBoard = board.flatten()
-        val size = flattenBoard.size
         var answer:Long = 0
-        for (i in flattenBoard.indices) {
-            answer += 4.0.pow(size-1-i).toLong() * flattenBoard[i]
+        for (i in board.indices) {
+            for(j in snakeMatrix.indices) {
+                answer += 4.0.pow(snakeMatrix[i][j]).toLong() * board[i][j]
+            }
 
         }
         return answer
+    }
+
+    private fun calculateIdealPositon(board: Array<Array<Int>>): Long {
+        val idealBoard = board.flatten().sortedDescending()
+        var index = idealBoard.size-1
+        var deviation = 0
+        for (i in board.indices) {
+            if (i % 2 == 0) {
+                for(j in board.indices) {
+                    deviation += board[i][j] - idealBoard[index--]
+                }
+            } else {
+                for(j in size-1 downTo 0) {
+                    deviation += board[i][j] - idealBoard[index--]
+                }
+            }
+        }
+        return (board.sumOf { it.sum() } - deviation).toLong()
+    }
+
+    private fun snakeMatrix(size: Int):Array<Array<Int>> {
+        val snake = Array(size) {Array(size) {0} }
+        var number = size * size
+        for (i in snake.indices) {
+            if (i % 2 == 0) {
+                for(j in snake.indices) {
+                    snake[i][j] = number--
+                }
+            } else {
+                for(j in size-1 downTo 0) {
+                    snake[i][j] = number--
+                }
+            }
+        }
+        return snake
+
     }
 
     private class RecursionData(var board: Array<Array<Int>>,var move:String, var fitness: Long)

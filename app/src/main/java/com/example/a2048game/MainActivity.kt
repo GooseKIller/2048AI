@@ -5,6 +5,7 @@ import Game
 import android.app.Activity
 import android.content.Intent
 import android.graphics.Color
+import android.graphics.Typeface
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -13,7 +14,6 @@ import android.view.Gravity
 import android.widget.Button
 import android.widget.GridLayout
 import android.widget.TextView
-//import androidx.compose.ui.graphics.Color
 import com.example.a2048game.presentation.GameVisualisation
 import com.example.a2048game.presentation.MenuActivity
 
@@ -30,7 +30,7 @@ class MainActivity : Activity() {
         val delayMilis: Long = intent.getLongExtra("delay", 350)
 
         val game = Game(size)
-        val ai = AiPathFinder(8, game.getSeeds())
+        val ai = AiPathFinder(8, game.getSeeds(), size)
         val gameVisualisation = GameVisualisation(game)
         val startStep = game.getStep()
 
@@ -58,19 +58,17 @@ class MainActivity : Activity() {
                 val paddingInPx = (paddingInDp * scale + 0.5f).toInt() // Перевод dp в пиксели
                 textView.setPadding(paddingInPx, paddingInPx, paddingInPx, paddingInPx)
                 textView.text = "" // Задайте текст клеточки по вашему выбору
-                //textView.textSize = 14f // Установите размер текста по вашему выбору
                 textView.gravity = Gravity.CENTER // Выравнивание текста по центру
+                textView.setTypeface(null, Typeface.BOLD)
                 textView.setBackgroundColor(Color.parseColor("#FFCBBFB3")) // Задайте цвет фона по вашему выбору
                 textView.setTextColor(Color.parseColor("#000000")) // Задайте цвет текста по вашему выбору
 
-                textView.setAutoSizeTextTypeUniformWithConfiguration(5, 14, 1, TypedValue.COMPLEX_UNIT_DIP)
+                textView.setAutoSizeTextTypeUniformWithConfiguration(1, 14, 1, TypedValue.COMPLEX_UNIT_DIP)
                 textView.layoutParams = params
 
-                // Добавьте textView в gridLayout
                 gridLayout.addView(textView)
             }
         }
-        //gameVisualisation.gripTiles(gridLayout, size)
 
         settingButton.setOnClickListener {
             val intent = Intent(this, MenuActivity::class.java)
@@ -91,7 +89,7 @@ class MainActivity : Activity() {
                     val runnable = object : Runnable {
                         override fun run() {
                             game.move(i.toString())
-                            updateUI(game.getBoard(), gridLayout, delayMilis)
+                            updateUI(game.getBoard(), gridLayout)
 
                             handler.postDelayed(this, delayMilis)
                         }
@@ -102,7 +100,6 @@ class MainActivity : Activity() {
                 handler.removeCallbacksAndMessages(null)
                 if (game.getStep()> startStep){
                     button.text = getString(R.string.Continue)
-                    //button.text = game.getBoard().map { it.joinToString(" ") }.joinToString("\n")
                 }
                 if (game.isLose()){
                     val text = "${getString(R.string.Restart)}\nSteps:${game.getStep()}\nMax Cell:${game.getMaxCell()}\nRecord:${game.getRecord()}"
@@ -114,7 +111,7 @@ class MainActivity : Activity() {
         }
     }
 
-    fun updateUI(board: Array<Array<Int>>, gridLayout: GridLayout, delayMillis: Long){
+    fun updateUI(board: Array<Array<Int>>, gridLayout: GridLayout){
         for(i in board.indices){
             for(j in board.indices){
                 val textView = gridLayout.getChildAt(i * board.size + j) as? TextView
@@ -141,7 +138,6 @@ class MainActivity : Activity() {
             }
 
         }
-        //Thread.sleep(delayMillis)
 
     }
 }
